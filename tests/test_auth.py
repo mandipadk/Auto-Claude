@@ -1122,3 +1122,118 @@ class TestValidateTokenNotEncrypted:
         # Token that starts with 'enc' but not 'enc:' should be accepted
         validate_token_not_encrypted("encrypted-looking-but-not")
         validate_token_not_encrypted("enctest")
+
+
+class TestVertexMode:
+    """Tests for Vertex AI authentication mode."""
+
+    VERTEX_ENV_VARS = [
+        "CLAUDE_CODE_USE_VERTEX",
+        "CLOUD_ML_REGION",
+        "ANTHROPIC_VERTEX_PROJECT_ID",
+        "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_AUTH_TOKEN",
+        "CLAUDE_CODE_OAUTH_TOKEN",
+    ]
+
+    @pytest.fixture(autouse=True)
+    def clear_env(self):
+        """Clear relevant environment variables before each test."""
+        for var in self.VERTEX_ENV_VARS:
+            os.environ.pop(var, None)
+        for var in AUTH_TOKEN_ENV_VARS:
+            os.environ.pop(var, None)
+        yield
+        # Cleanup after test
+        for var in self.VERTEX_ENV_VARS:
+            os.environ.pop(var, None)
+        for var in AUTH_TOKEN_ENV_VARS:
+            os.environ.pop(var, None)
+
+    def test_is_vertex_mode_enabled(self):
+        """Detects Vertex mode when CLAUDE_CODE_USE_VERTEX=1."""
+        from core.auth import is_vertex_mode
+
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "1"
+        assert is_vertex_mode() is True
+
+    def test_is_vertex_mode_enabled_true_string(self):
+        """Detects Vertex mode when CLAUDE_CODE_USE_VERTEX=true."""
+        from core.auth import is_vertex_mode
+
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "true"
+        assert is_vertex_mode() is True
+
+    def test_is_vertex_mode_disabled(self):
+        """Returns False when CLAUDE_CODE_USE_VERTEX is not set."""
+        from core.auth import is_vertex_mode
+
+        assert is_vertex_mode() is False
+
+    def test_is_vertex_mode_disabled_zero(self):
+        """Returns False when CLAUDE_CODE_USE_VERTEX=0."""
+        from core.auth import is_vertex_mode
+
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "0"
+        assert is_vertex_mode() is False
+
+    def test_configure_sdk_vertex_mode(self):
+        """configure_sdk_authentication works in Vertex mode."""
+        from core.auth import configure_sdk_authentication
+
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "1"
+        os.environ["CLOUD_ML_REGION"] = "us-east5"
+        os.environ["ANTHROPIC_VERTEX_PROJECT_ID"] = "my-gcp-project"
+        # Set an OAuth token that should be removed
+        os.environ["CLAUDE_CODE_OAUTH_TOKEN"] = "sk-ant-oat01-should-be-removed"
+
+        configure_sdk_authentication()
+
+        # OAuth token should be removed in Vertex mode
+        assert "CLAUDE_CODE_OAUTH_TOKEN" not in os.environ
+
+    def test_configure_sdk_vertex_mode_missing_region(self):
+        """configure_sdk_authentication raises when region is missing in Vertex mode."""
+        from core.auth import configure_sdk_authentication
+
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "1"
+        os.environ["ANTHROPIC_VERTEX_PROJECT_ID"] = "my-gcp-project"
+        # No CLOUD_ML_REGION set
+
+        with pytest.raises(ValueError) as exc_info:
+            configure_sdk_authentication()
+
+        assert "CLOUD_ML_REGION" in str(exc_info.value)
+
+    def test_configure_sdk_vertex_mode_missing_project(self):
+        """configure_sdk_authentication raises when project ID is missing in Vertex mode."""
+        from core.auth import configure_sdk_authentication
+
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "1"
+        os.environ["CLOUD_ML_REGION"] = "us-east5"
+        # No ANTHROPIC_VERTEX_PROJECT_ID set
+
+        with pytest.raises(ValueError) as exc_info:
+            configure_sdk_authentication()
+
+        assert "ANTHROPIC_VERTEX_PROJECT_ID" in str(exc_info.value)
+
+    def test_sdk_env_vars_include_vertex_vars(self):
+        """SDK env vars include Vertex-related variables."""
+        os.environ["CLAUDE_CODE_USE_VERTEX"] = "1"
+        os.environ["CLOUD_ML_REGION"] = "us-east5"
+        os.environ["ANTHROPIC_VERTEX_PROJECT_ID"] = "my-project"
+
+        env = get_sdk_env_vars()
+
+        assert env.get("CLAUDE_CODE_USE_VERTEX") == "1"
+        assert env.get("CLOUD_ML_REGION") == "us-east5"
+        assert env.get("ANTHROPIC_VERTEX_PROJECT_ID") == "my-project"
+
+    def test_sdk_env_vars_exclude_unset_vertex_vars(self):
+        """SDK env vars exclude Vertex variables when not set."""
+        env = get_sdk_env_vars()
+
+        assert "CLAUDE_CODE_USE_VERTEX" not in env
+        assert "CLOUD_ML_REGION" not in env
+        assert "ANTHROPIC_VERTEX_PROJECT_ID" not in env

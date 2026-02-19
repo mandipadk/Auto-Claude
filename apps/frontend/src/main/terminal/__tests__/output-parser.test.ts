@@ -11,6 +11,7 @@ import {
   extractEmail,
   hasRateLimitMessage,
   hasOAuthToken,
+  hasVertexAuth,
 } from '../output-parser';
 
 describe('output-parser', () => {
@@ -305,6 +306,29 @@ describe('output-parser', () => {
         const colorInsideEmail = "andr\x1b[1me\x1b[0m@mikalsenai.no's Organization";
         expect(extractEmail(colorInsideEmail)).toBe('andre@mikalsenai.no');
       });
+    });
+  });
+
+  describe('hasVertexAuth', () => {
+    it('detects Vertex AI references in output', () => {
+      expect(hasVertexAuth('Using Vertex AI')).toBe(true);
+      expect(hasVertexAuth('Vertex AI project: my-project')).toBe(true);
+      expect(hasVertexAuth('vertex project configured')).toBe(true);
+    });
+
+    it('detects CLAUDE_CODE_USE_VERTEX in output', () => {
+      expect(hasVertexAuth('CLAUDE_CODE_USE_VERTEX=1')).toBe(true);
+    });
+
+    it('detects gcloud auth references', () => {
+      expect(hasVertexAuth('gcloud auth application-default login')).toBe(true);
+      expect(hasVertexAuth('Run gcloud auth application-default to authenticate')).toBe(true);
+    });
+
+    it('returns false for normal output', () => {
+      expect(hasVertexAuth('Normal text')).toBe(false);
+      expect(hasVertexAuth('Login successful')).toBe(false);
+      expect(hasVertexAuth('sk-ant-oat01-test123')).toBe(false);
     });
   });
 });
