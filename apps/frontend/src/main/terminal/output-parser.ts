@@ -55,6 +55,20 @@ const EMAIL_PATTERNS = [
 const LOGIN_SUCCESS_PATTERN = /(?:Login successful|Successfully logged in|Logged in as\s+\S+@\S+)/i;
 
 /**
+ * Pattern to detect Vertex AI authentication in Claude CLI output.
+ * When Claude Code starts in Vertex mode (CLAUDE_CODE_USE_VERTEX=1),
+ * it shows different output than OAuth mode - typically the project/region
+ * info and a ready prompt without going through /login.
+ */
+const VERTEX_AUTH_PATTERNS = [
+  /^\s*Using Vertex AI\b.*$/mi,                                  // Startup line: "Using Vertex AI ..."
+  /^\s*Vertex AI project:\s*\S+/mi,                              // "Vertex AI project: my-project"
+  /^\s*Vertex AI region:\s*\S+/mi,                               // "Vertex AI region: us-central1"
+  /\bCLAUDE_CODE_USE_VERTEX\s*=\s*(?:1|true)\b/i,                // Env var explicitly enabling Vertex mode
+  /^\s*gcloud\s+auth\s+application-default\s+login\b.*$/mi,      // "gcloud auth application-default login" command
+];
+
+/**
  * Extract Claude session ID from output
  */
 export function extractClaudeSessionId(data: string): string | null {
@@ -186,6 +200,14 @@ export function hasOAuthToken(data: string): boolean {
  */
 export function hasLoginSuccess(data: string): boolean {
   return LOGIN_SUCCESS_PATTERN.test(data);
+}
+
+/**
+ * Check if output indicates Vertex AI authentication mode
+ * Vertex mode uses Google Cloud ADC instead of OAuth tokens
+ */
+export function hasVertexAuth(data: string): boolean {
+  return VERTEX_AUTH_PATTERNS.some(pattern => pattern.test(data));
 }
 
 /**

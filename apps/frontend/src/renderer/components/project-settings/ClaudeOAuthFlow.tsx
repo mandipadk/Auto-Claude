@@ -7,7 +7,8 @@ import {
   AlertCircle,
   Info,
   Sparkles,
-  RefreshCw
+  RefreshCw,
+  Cloud
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
@@ -22,12 +23,14 @@ interface ClaudeOAuthFlowProps {
  * Guides users through authenticating with Claude by opening a visible terminal
  * where they type /login to authenticate. Uses manual verification instead of
  * auto-polling to avoid race conditions with keychain auto-reconnect.
+ * Also supports Vertex AI authentication via Google Cloud ADC.
  */
 export function ClaudeOAuthFlow({ onSuccess, onCancel }: ClaudeOAuthFlowProps) {
   const { t } = useTranslation('common');
   const [status, setStatus] = useState<'ready' | 'authenticating' | 'verifying' | 'success' | 'error'>('ready');
   const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState<string | undefined>();
+  const [isVertexAuth, setIsVertexAuth] = useState(false);
   const [authenticatingProfileId, setAuthenticatingProfileId] = useState<string | null>(null);
 
   // Track if we've already started auth to prevent double-execution
@@ -88,8 +91,9 @@ export function ClaudeOAuthFlow({ onSuccess, onCancel }: ClaudeOAuthFlowProps) {
       console.warn('[ClaudeOAuth] Verification result:', result);
 
       if (result.success && result.data?.authenticated) {
-        console.warn('[ClaudeOAuth] Auth verified! Email:', result.data.email);
+        console.warn('[ClaudeOAuth] Auth verified! Email:', result.data.email, 'Vertex:', result.data.isVertexAuth);
         setEmail(result.data.email);
+        setIsVertexAuth(result.data.isVertexAuth || false);
         setStatus('success');
 
         // Auto-advance after a short delay to show success message
@@ -112,6 +116,7 @@ export function ClaudeOAuthFlow({ onSuccess, onCancel }: ClaudeOAuthFlowProps) {
     hasStartedRef.current = false;
     setStatus('ready');
     setError(null);
+    setIsVertexAuth(false);
     setAuthenticatingProfileId(null);
   };
 
@@ -133,6 +138,23 @@ export function ClaudeOAuthFlow({ onSuccess, onCancel }: ClaudeOAuthFlowProps) {
                   </p>
                   <p className="text-sm text-muted-foreground">
                     {t('oauth.authenticateTerminalInfo')}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Vertex AI alternative note */}
+          <Card className="border border-muted/50 bg-muted/10">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <Cloud className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="flex-1 space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {t('oauth.vertexAlternativeTitle')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('oauth.vertexAlternativeDescription')}
                   </p>
                 </div>
               </div>
@@ -190,6 +212,16 @@ export function ClaudeOAuthFlow({ onSuccess, onCancel }: ClaudeOAuthFlowProps) {
                 </div>
               </div>
 
+              {/* Vertex AI alternative hint */}
+              <div className="rounded-lg bg-background/50 p-3">
+                <div className="flex items-start gap-2">
+                  <Cloud className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    {t('oauth.vertexAuthHint')}
+                  </p>
+                </div>
+              </div>
+
               {error && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-3">
                   <p className="text-sm text-destructive">{error}</p>
@@ -237,7 +269,9 @@ export function ClaudeOAuthFlow({ onSuccess, onCancel }: ClaudeOAuthFlowProps) {
                   {t('oauth.successTitle')}
                 </h3>
                 <p className="text-sm text-success/80 mt-1">
-                  {email ? t('oauth.connectedAs', { email }) : t('oauth.credentialsSaved')}
+                  {isVertexAuth
+                    ? t('oauth.vertexConnected')
+                    : email ? t('oauth.connectedAs', { email }) : t('oauth.credentialsSaved')}
                 </p>
                 <div className="flex items-center gap-2 mt-3 text-xs text-success/70">
                   <Sparkles className="h-3 w-3" />

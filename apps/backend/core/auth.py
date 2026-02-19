@@ -64,6 +64,13 @@ SDK_ENV_VARS = [
     "CLAUDE_CLI_PATH",
     # Profile's custom config directory (for multi-profile token storage)
     "CLAUDE_CONFIG_DIR",
+    # Vertex AI configuration (Google Cloud)
+    # When CLAUDE_CODE_USE_VERTEX=1, Claude Code uses Google Cloud ADC
+    # instead of OAuth tokens for authentication
+    "CLAUDE_CODE_USE_VERTEX",
+    "CLOUD_ML_REGION",
+    "ANTHROPIC_VERTEX_PROJECT_ID",
+    "GOOGLE_APPLICATION_CREDENTIALS",
 ]
 
 
@@ -978,11 +985,28 @@ def get_sdk_env_vars() -> dict[str, str]:
     return env
 
 
+def is_vertex_mode() -> bool:
+    """
+    Check if Vertex AI authentication mode is active.
+
+    Vertex mode is enabled when CLAUDE_CODE_USE_VERTEX is set to '1' or 'true'.
+    In this mode, Claude Code uses Google Cloud Application Default Credentials
+    (ADC) instead of OAuth tokens. Users authenticate via:
+        gcloud auth application-default login
+
+    Returns:
+        True if Vertex mode is active
+    """
+    value = os.environ.get("CLAUDE_CODE_USE_VERTEX", "").strip().lower()
+    return value in ("1", "true")
+
+
 def configure_sdk_authentication(config_dir: str | None = None) -> None:
     """
     Configure SDK authentication based on environment variables.
 
-    Supports two authentication modes:
+    Supports three authentication modes:
+    - Vertex AI mode (CLAUDE_CODE_USE_VERTEX=1): uses Google Cloud ADC
     - API Profile mode (ANTHROPIC_BASE_URL set): uses ANTHROPIC_AUTH_TOKEN
     - OAuth mode (default): uses CLAUDE_CODE_OAUTH_TOKEN
 
@@ -998,20 +1022,48 @@ def configure_sdk_authentication(config_dir: str | None = None) -> None:
         ValueError: If required tokens are missing for the active mode.
                    - API profile mode: requires ANTHROPIC_AUTH_TOKEN
                    - OAuth mode: requires CLAUDE_CODE_OAUTH_TOKEN (from Keychain or env)
+                   - Vertex mode: requires CLOUD_ML_REGION and ANTHROPIC_VERTEX_PROJECT_ID
     """
     _debug = os.environ.get("DEBUG", "").lower() in ("true", "1")
+    vertex_mode = is_vertex_mode()
     api_profile_mode = bool(os.environ.get("ANTHROPIC_BASE_URL", "").strip())
 
     if _debug:
+        mode = "vertex" if vertex_mode else ("api_profile" if api_profile_mode else "oauth")
         logger.info(
             "[Auth] configure_sdk_authentication() — mode=%s, config_dir=%s, "
             "CLAUDE_CONFIG_DIR env=%s",
-            "api_profile" if api_profile_mode else "oauth",
+            mode,
             repr(config_dir),
             "set" if os.environ.get("CLAUDE_CONFIG_DIR") else "unset",
         )
 
-    if api_profile_mode:
+    if vertex_mode:
+        # Vertex AI mode: uses Google Cloud Application Default Credentials (ADC)
+        # Claude Code handles ADC authentication internally when CLAUDE_CODE_USE_VERTEX=1
+        # The user must have run: gcloud auth application-default login
+        region = os.environ.get("CLOUD_ML_REGION", "").strip()
+        project_id = os.environ.get("ANTHROPIC_VERTEX_PROJECT_ID", "").strip()
+
+        if not region or not project_id:
+            missing = []
+            if not region:
+                missing.append("CLOUD_ML_REGION")
+            if not project_id:
+                missing.append("ANTHROPIC_VERTEX_PROJECT_ID")
+            raise ValueError(
+                f"Vertex AI mode active (CLAUDE_CODE_USE_VERTEX=1) "
+                f"but required environment variable(s) not set: {', '.join(missing)}\n\n"
+                f"To use Vertex AI authentication:\n"
+                f"  1. Set CLOUD_ML_REGION (e.g., us-east5)\n"
+                f"  2. Set ANTHROPIC_VERTEX_PROJECT_ID (your GCP project ID)\n"
+                f"  3. Run: gcloud auth application-default login"
+            )
+
+        # Remove OAuth token to prevent SDK from using it instead of ADC
+        os.environ.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+        logger.info("Using Vertex AI authentication (region=%s, project=%s)", region, project_id)
+    elif api_profile_mode:
         # API profile mode: ensure ANTHROPIC_AUTH_TOKEN is present
         if not os.environ.get("ANTHROPIC_AUTH_TOKEN"):
             raise ValueError(
