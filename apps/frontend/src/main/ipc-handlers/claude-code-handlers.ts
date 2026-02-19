@@ -957,11 +957,14 @@ function checkProfileAuthentication(configDir: string): AuthCheckResult {
       const defaultAdcPath = isWindows()
         ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'gcloud', 'application_default_credentials.json')
         : path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json');
-      const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultAdcPath;
+      const rawAdcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultAdcPath;
+      const adcPath = rawAdcPath.startsWith('~')
+        ? path.join(os.homedir(), rawAdcPath.slice(1))
+        : rawAdcPath;
 
       if (existsSync(adcPath)) {
-        const region = process.env.CLOUD_ML_REGION;
-        const projectId = process.env.ANTHROPIC_VERTEX_PROJECT_ID;
+        const region = process.env.CLOUD_ML_REGION?.trim();
+        const projectId = process.env.ANTHROPIC_VERTEX_PROJECT_ID?.trim();
 
         if (region && projectId) {
           console.warn('[Claude Code] Vertex AI authentication detected (ADC exists, region and project set)');
