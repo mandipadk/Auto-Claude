@@ -61,10 +61,11 @@ const LOGIN_SUCCESS_PATTERN = /(?:Login successful|Successfully logged in|Logged
  * info and a ready prompt without going through /login.
  */
 const VERTEX_AUTH_PATTERNS = [
-  /Vertex AI/i,                                  // "Using Vertex AI" or "Vertex AI project"
-  /vertex project/i,                             // "vertex project: my-project"
-  /CLAUDE_CODE_USE_VERTEX/,                      // Direct env var reference in output
-  /gcloud\s+auth\s+application-default/i,        // "gcloud auth application-default login" command
+  /^\s*Using Vertex AI\b.*$/mi,                                  // Startup line: "Using Vertex AI ..."
+  /^\s*Vertex AI project:\s*\S+/mi,                              // "Vertex AI project: my-project"
+  /^\s*Vertex AI region:\s*\S+/mi,                               // "Vertex AI region: us-central1"
+  /\bCLAUDE_CODE_USE_VERTEX\s*=\s*(?:1|true)\b/i,                // Env var explicitly enabling Vertex mode
+  /^\s*gcloud\s+auth\s+application-default\s+login\b.*$/mi,      // "gcloud auth application-default login" command
 ];
 
 /**
