@@ -579,6 +579,38 @@ export function handleOAuthToken(
     return;
   }
 
+  // Check for Vertex AI authentication mode
+  // When Claude Code is running with CLAUDE_CODE_USE_VERTEX=1, it uses
+  // Google Cloud ADC instead of OAuth tokens. Detect Vertex-specific output
+  // to mark the profile as authenticated without requiring /login.
+  if (OutputParser.hasVertexAuth(data) && profileId) {
+    console.warn('[ClaudeIntegration] Vertex AI auth detected for profile:', profileId);
+
+    const profileManager = getClaudeProfileManager();
+    const profile = profileManager.getProfile(profileId);
+
+    if (profile) {
+      profile.isAuthenticated = true;
+      profileManager.saveProfile(profile);
+
+      // Set flag to watch for Claude's ready state (onboarding complete)
+      terminal.awaitingOnboardingComplete = true;
+
+      const win = getWindow();
+      if (win) {
+        win.webContents.send(IPC_CHANNELS.TERMINAL_OAUTH_TOKEN, {
+          terminalId: terminal.id,
+          profileId,
+          email: undefined,
+          success: true,
+          needsOnboarding: true,
+          detectedAt: new Date().toISOString()
+        } as OAuthTokenEvent);
+      }
+    }
+    return;
+  }
+
   // Fallback: Check for raw OAuth token in output (legacy method)
   const token = OutputParser.extractOAuthToken(data);
   if (!token) {

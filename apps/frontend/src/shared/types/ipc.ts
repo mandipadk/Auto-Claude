@@ -333,7 +333,7 @@ export interface ElectronAPI {
   /** Prepare authentication for a Claude profile - returns terminal config for embedded terminal */
   authenticateClaudeProfile: (profileId: string) => Promise<IPCResult<{ terminalId: string; configDir: string }>>;
   /** Check if a profile has been authenticated (by checking .claude.json) */
-  verifyClaudeProfileAuth: (profileId: string) => Promise<IPCResult<{ authenticated: boolean; email?: string }>>;
+  verifyClaudeProfileAuth: (profileId: string) => Promise<IPCResult<{ authenticated: boolean; email?: string; isVertexAuth?: boolean }>>;
   /** Get auto-switch settings */
   getAutoSwitchSettings: () => Promise<IPCResult<ClaudeAutoSwitchSettings>>;
   /** Update auto-switch settings */

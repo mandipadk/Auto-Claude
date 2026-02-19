@@ -848,6 +848,8 @@ interface AuthCheckResult {
     expiresAt?: string;
     [key: string]: unknown;
   };
+  /** Whether authentication is via Vertex AI (Google Cloud ADC) */
+  isVertexAuth?: boolean;
 }
 
 /**
@@ -941,6 +943,29 @@ function checkProfileAuthentication(configDir: string): AuthCheckResult {
             emailAddress: keychainCreds.email || undefined
           }
         };
+      }
+    }
+
+    // Check for Vertex AI authentication via Google Cloud ADC
+    // When CLAUDE_CODE_USE_VERTEX=1 is set, Claude Code uses Application Default
+    // Credentials instead of OAuth tokens. Check if ADC file exists.
+    const vertexEnv = process.env.CLAUDE_CODE_USE_VERTEX;
+    if (vertexEnv === '1' || vertexEnv?.toLowerCase() === 'true') {
+      const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
+        || path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json');
+
+      if (existsSync(adcPath)) {
+        const region = process.env.CLOUD_ML_REGION;
+        const projectId = process.env.ANTHROPIC_VERTEX_PROJECT_ID;
+
+        if (region && projectId) {
+          console.warn('[Claude Code] Vertex AI authentication detected (ADC exists, region and project set)');
+          return {
+            authenticated: true,
+            email: undefined,
+            isVertexAuth: true
+          };
+        }
       }
     }
 
@@ -1323,7 +1348,7 @@ export function registerClaudeCodeHandlers(): void {
   // Verify if a profile has been authenticated
   ipcMain.handle(
     IPC_CHANNELS.CLAUDE_PROFILE_VERIFY_AUTH,
-    async (_event, profileId: string): Promise<IPCResult<{ authenticated: boolean; email?: string }>> => {
+    async (_event, profileId: string): Promise<IPCResult<{ authenticated: boolean; email?: string; isVertexAuth?: boolean }>> => {
       try {
         console.warn('[Claude Code] Verifying auth for profile:', profileId);
 

@@ -542,8 +542,12 @@
     "saveToken": "Enregistrer le jeton",
     "accountNamePlaceholder": "Nom du compte (ex. Travail, Personnel)",
     "hasAuthenticatedAccount": "Vous avez au moins un compte Claude authentifié. Vous pouvez passer à l'étape suivante.",
-    "authNotDetected": "Authentification non détectée. Veuillez d'abord compléter /login dans le terminal.",
+    "authNotDetected": "Authentification non détectée. Veuillez d'abord compléter /login dans le terminal, ou vérifiez que les variables d'environnement Vertex AI sont configurées.",
     "noProfileSelected": "Aucun profil sélectionné pour la vérification",
+    "vertexAlternativeTitle": "Vous utilisez Google Cloud Vertex AI ?",
+    "vertexAlternativeDescription": "Si vous utilisez Claude via Vertex AI, définissez CLAUDE_CODE_USE_VERTEX=1, CLOUD_ML_REGION et ANTHROPIC_VERTEX_PROJECT_ID, puis exécutez gcloud auth application-default login. Cliquez sur Vérifier l'authentification après la configuration.",
+    "vertexAuthHint": "Vous utilisez Vertex AI ? Si vous avez déjà exécuté gcloud auth application-default login avec CLAUDE_CODE_USE_VERTEX=1 défini, cliquez simplement sur Vérifier l'authentification ci-dessous.",
+    "vertexConnected": "Connecté via Google Cloud Vertex AI",
     "alerts": {
       "profileCreatedAuthFailed": "Profil créé, mais échec du démarrage de l'authentification : {{error}}",
       "authPrepareFailed": "Échec de la préparation de l'authentification : {{error}}",
