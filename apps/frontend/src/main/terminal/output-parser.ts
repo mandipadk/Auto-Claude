@@ -64,7 +64,7 @@ const VERTEX_AUTH_PATTERNS = [
   /Vertex AI/i,                                  // "Using Vertex AI" or "Vertex AI project"
   /vertex project/i,                             // "vertex project: my-project"
   /CLAUDE_CODE_USE_VERTEX/,                      // Direct env var reference in output
-  /gcloud.*application-default/i,                // "gcloud auth application-default" reference
+  /gcloud\s+auth\s+application-default/i,        // "gcloud auth application-default login" command
 ];
 
 /**

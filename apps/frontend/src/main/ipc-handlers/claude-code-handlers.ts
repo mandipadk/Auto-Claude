@@ -951,8 +951,13 @@ function checkProfileAuthentication(configDir: string): AuthCheckResult {
     // Credentials instead of OAuth tokens. Check if ADC file exists.
     const vertexEnv = process.env.CLAUDE_CODE_USE_VERTEX;
     if (vertexEnv === '1' || vertexEnv?.toLowerCase() === 'true') {
-      const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
-        || path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json');
+      // ADC path varies by platform:
+      // - Unix/macOS: ~/.config/gcloud/application_default_credentials.json
+      // - Windows: %APPDATA%/gcloud/application_default_credentials.json
+      const defaultAdcPath = isWindows()
+        ? path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'gcloud', 'application_default_credentials.json')
+        : path.join(os.homedir(), '.config', 'gcloud', 'application_default_credentials.json');
+      const adcPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || defaultAdcPath;
 
       if (existsSync(adcPath)) {
         const region = process.env.CLOUD_ML_REGION;

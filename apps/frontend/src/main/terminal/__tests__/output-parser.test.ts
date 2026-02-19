@@ -329,6 +329,7 @@ describe('output-parser', () => {
       expect(hasVertexAuth('Normal text')).toBe(false);
       expect(hasVertexAuth('Login successful')).toBe(false);
       expect(hasVertexAuth('sk-ant-oat01-test123')).toBe(false);
+      expect(hasVertexAuth('gcloud compute instances list')).toBe(false);
     });
   });
 });
